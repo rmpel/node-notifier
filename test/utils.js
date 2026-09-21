@@ -47,13 +47,11 @@ describe('utils', function () {
       ).toEqual(expected);
     });
 
-    it('should map icon for notification center', function () {
+    it('should drop icon for notification center (unsupported by terminal-notifier 3)', function () {
       const expected = {
         title: 'Foo',
         message: 'Bar',
-        appIcon: 'foobar',
-        timeout: 10,
-        json: true
+        timeout: 10
       };
 
       expect(
@@ -62,6 +60,36 @@ describe('utils', function () {
 
       expect(_.mapToMac({ title: 'Foo', message: 'Bar', i: 'foobar' })).toEqual(
         expected
+      );
+    });
+
+    it('should parse terminal-notifier responses', function () {
+      expect(
+        _.parseMacResponse([], '{"activationType":"contentsClicked"}')
+      ).toEqual({
+        activationType: 'contentsClicked'
+      });
+      expect(_.parseMacResponse(['-action', 'Yes'], '@TIMEOUT\n')).toEqual({
+        activationType: 'timedOut'
+      });
+      expect(_.parseMacResponse(['-action', 'Yes'], '@CLOSED\n')).toEqual({
+        activationType: 'closed'
+      });
+      expect(
+        _.parseMacResponse(['-action', 'Yes'], '@ACTIONCLICKED\n')
+      ).toEqual({
+        activationType: 'contentsClicked'
+      });
+      expect(_.parseMacResponse(['-action', 'Yes'], 'Yes\n')).toEqual({
+        activationType: 'actionClicked',
+        activationValue: 'Yes'
+      });
+      expect(_.parseMacResponse(['-reply'], 'Hello\n')).toEqual({
+        activationType: 'replied',
+        activationValue: 'Hello'
+      });
+      expect(_.parseMacResponse(['-list', '"ALL"'], 'GroupID\tTitle\n')).toBe(
+        'GroupID\tTitle\n'
       );
     });
 

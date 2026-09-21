@@ -34,7 +34,7 @@ notifier.notify({
 
 ## Requirements
 
-- **macOS**: >= 10.8 for native notifications, or Growl if earlier.
+- **macOS**: >= 10.14 for native notifications, or Growl if earlier. Ships a universal (Intel + Apple silicon) `terminal-notifier`, so Rosetta is not needed.
 - **Linux**: `notify-osd` or `libnotify-bin` installed (Ubuntu should have this by default)
 - **Windows**: >= 8, or task bar balloons for Windows < 8. Growl as fallback. Growl takes precedence over Windows balloons.
 - **General Fallback**: Growl
@@ -134,9 +134,16 @@ new nn.Growl(options).notify(options);
 
 Same usage and parameter setup as [**`terminal-notifier`**](https://github.com/julienXX/terminal-notifier).
 
-Native Notification Center requires macOS version 10.8 or higher. If you have
+Native Notification Center requires macOS version 10.14 or higher. If you have
 an earlier version, Growl will be the fallback. If Growl isn't installed, an
 error will be returned in the callback.
+
+The bundled [`terminal-notifier`](https://github.com/julienXX/terminal-notifier)
+is the official universal release (Intel and Apple silicon), built on Apple's
+`UserNotifications` framework. The first notification on a machine makes macOS
+ask for permission once, under the name **terminal-notifier** in System
+Settings → Notifications. If that permission is declined, notifications fail
+with an error in the callback until it is granted again there.
 
 #### Example
 
@@ -158,7 +165,7 @@ but they aren't documented.
 const NotificationCenter = require('node-notifier').NotificationCenter;
 
 var notifier = new NotificationCenter({
-  withFallback: false, // Use Growl Fallback if <= 10.8
+  withFallback: false, // Use Growl Fallback if < 10.14
   customPath: undefined // Relative/Absolute path to binary if you want to use your own fork of terminal-notifier
 });
 
@@ -168,17 +175,17 @@ notifier.notify(
     subtitle: undefined,
     message: undefined,
     sound: false, // Case Sensitive string for location of sound file, or use one of macOS' native sounds (see below)
-    icon: 'Terminal Icon', // Absolute Path to Triggering Icon
-    contentImage: undefined, // Absolute Path to Attached Image (Content Image)
+    icon: undefined, // Ignored on macOS: the icon always comes from the sending app bundle (see below)
+    contentImage: undefined, // Absolute Path to Attached Image (Content Image). Local files only.
     open: undefined, // URL to open on Click
     wait: false, // Wait for User Action against Notification or times out. Same as timeout = 5 seconds
 
-    // New in latest version. See `example/macInput.js` for usage
-    timeout: 5, // Takes precedence over wait if both are defined.
-    closeLabel: undefined, // String. Label for cancel button
-    actions: undefined, // String | Array<String>. Action label or list of labels in case of dropdown
-    dropdownLabel: undefined, // String. Label to be used if multiple actions
-    reply: false // Boolean. If notification should take input. Value passed as third argument in callback and event emitter.
+    // See `example/macInput.js` for usage
+    timeout: 5, // Takes precedence over wait if both are defined. Only waits when `actions` or `reply` is set.
+    closeLabel: undefined, // Ignored on macOS >= 10.14 (no equivalent in the UserNotifications framework)
+    actions: undefined, // String | Array<String>. One button per label.
+    dropdownLabel: undefined, // Ignored on macOS >= 10.14 (no equivalent in the UserNotifications framework)
+    reply: false // Boolean | String. If notification should take input; a string is used as placeholder. Value passed as third argument in callback and event emitter.
   },
   function (error, response, metadata) {
     console.log(response, metadata);
@@ -198,7 +205,9 @@ high value, or to nothing at all.
 
 ---
 
-**For macOS notifications: `icon`, `contentImage`, and all forms of `reply`/`actions` require macOS 10.9.**
+**For macOS notifications:** `terminal-notifier` only waits for a response (and
+therefore only reports `click`, `replied` and `timeout`) when `actions` or
+`reply` is set. A plain notification returns as soon as it is delivered.
 
 Sound can be one of these: `Basso`, `Blow`, `Bottle`, `Frog`, `Funk`, `Glass`,
 `Hero`, `Morse`, `Ping`, `Pop`, `Purr`, `Sosumi`, `Submarine`, `Tink`.
@@ -416,7 +425,8 @@ parent application initiating the notification. For `node-notifier`, `terminal-n
 is the initiator, and it has the Terminal icon defined as its icon.
 
 To define your custom icon, you need to fork `terminal-notifier` and build your
-custom version with your icon.
+custom version with your icon, then point `customPath` at it. The `icon` option
+is accepted for compatibility but has no effect on macOS.
 
 See [Issue #71 for more info](https://github.com/mikaelbr/node-notifier/issues/71)
 <https://github.com/mikaelbr/node-notifier/issues/71>.

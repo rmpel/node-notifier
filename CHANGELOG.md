@@ -1,5 +1,20 @@
 # Changelog
 
+### Unreleased
+
+Breaking changes:
+
+- Updates the bundled `terminal-notifier` to the official 3.1.0 release, a universal binary that runs natively on Apple silicon (no Rosetta) as well as Intel. Fixes [#361](https://github.com/mikaelbr/node-notifier/issues/361). The bundle is downloaded from the upstream GitHub release and checked against a recorded SHA-256 by `scripts/update-terminal-notifier.sh`.
+- The minimum macOS version for native notifications is now 10.14 (Mojave); older versions fall back to Growl as before.
+- macOS asks for notification permission once, the first time a notification is sent. node-notifier registers the bundled app with LaunchServices on first use so that prompt can appear.
+- `icon`/`appIcon`, `sender`, `closeLabel` and `dropdownLabel` have no effect on macOS anymore: the `UserNotifications` framework does not support them.
+- On macOS, `wait`/`timeout` only wait for a response when `actions` or `reply` is set.
+
+Fixes:
+
+- `actions` are passed as separate `-action` flags and `reply` accepts a placeholder string, matching terminal-notifier 3.
+- `utils.isMountainLion()` is deprecated in favour of `utils.isMojaveOrLater()` (kept as an alias).
+
 ### `v10.0.1`
 
 Fixes:

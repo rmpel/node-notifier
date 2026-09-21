@@ -13,7 +13,7 @@ const EventEmitter = require('events').EventEmitter;
 const util = require('util');
 
 const errorMessageOsX =
-  'You need Mac OS X 10.8 or above to use NotificationCenter,' +
+  'You need macOS 10.14 or above to use NotificationCenter,' +
   ' or use Growl fallback with constructor option {withFallback: true}.';
 
 module.exports = NotificationCenter;
@@ -53,7 +53,7 @@ function notifyRaw(options, callback) {
     this,
     options,
     callback,
-    function(data) {
+    function (data) {
       if (activeId !== id) return false;
 
       if (data === 'activate') {
@@ -76,9 +76,9 @@ function notifyRaw(options, callback) {
     return this;
   }
 
-  const argsList = utils.constructArgumentList(options);
-  if (utils.isMountainLion()) {
-    utils.fileCommandJson(
+  const argsList = constructMacArgumentList(options);
+  if (utils.isMojaveOrLater()) {
+    runNotifier(
       this.options.customPath || notifier,
       argsList,
       actionJackedCallback
@@ -95,8 +95,53 @@ function notifyRaw(options, callback) {
   return this;
 }
 
+/**
+ * terminal-notifier >= 3 reads `-action` and `-reply` straight from argv
+ * instead of through NSUserDefaults, so they must not be wrapped in quotes,
+ * `-action` may repeat (one per button) and `-reply` may stand alone.
+ */
+function constructMacArgumentList(options) {
+  let actions = options.actions;
+  const reply = options.reply;
+  delete options.actions;
+  delete options.reply;
+
+  const argsList = utils.constructArgumentList(options);
+
+  if (actions) {
+    actions = utils.isArray(actions) ? actions : [actions];
+    actions.forEach(function (action) {
+      argsList.push('-action', String(action));
+    });
+  }
+
+  if (typeof reply === 'string') {
+    argsList.push('-reply', reply);
+  } else if (reply) {
+    argsList.push('-reply');
+  }
+
+  return argsList;
+}
+
+function runNotifier(notifierPath, argsList, callback) {
+  utils.fileCommandJson(notifierPath, argsList, function (error, data) {
+    if (!utils.isMacNotAuthorizedError(error, data)) {
+      return callback(error, data);
+    }
+
+    // First run of the bundled binary on this machine: make LaunchServices
+    // aware of the app bundle so macOS can show the permission prompt, then
+    // try once more.
+    utils.registerMacNotifier(notifierPath, function (registerError) {
+      if (registerError) return callback(error, data);
+      utils.fileCommandJson(notifierPath, argsList, callback);
+    });
+  });
+}
+
 Object.defineProperty(NotificationCenter.prototype, 'notify', {
-  get: function() {
+  get: function () {
     if (!this._notify) this._notify = notifyRaw.bind(this);
     return this._notify;
   }
